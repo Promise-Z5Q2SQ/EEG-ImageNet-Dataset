@@ -1,0 +1,80 @@
+n02106662	German shepherd, German shepherd dog, German police dog, alsatian
+n02124075   Egyptian cat
+n02281787	lycaenid, lycaenid butterfly
+n02389026	sorrel
+n02492035	capuchin, ringtail, Cebus capucinus
+n02504458	African elephant, Loxodonta africana
+n02510455	giant panda, panda, panda bear, coon bear, Ailuropoda melanoleuca
+n02607072	anemone fish
+n02690373	airliner
+n02906734	broom
+n02951358	canoe
+n02992529	cellular telephone, cellular phone, cellphone, cell, mobile phone
+n03063599	coffee mug
+n03100240	convertible
+n03180011	desktop computer
+n03197337	digital watch
+n03272010	electric guitar
+n03272562	electric locomotive
+n03297495	espresso maker
+n03376595	folding chair
+n03445777	golf ball
+n03452741	grand piano, grand
+n03584829	iron, smoothing iron
+n03590841	jack-o'-lantern
+n03709823	mailbag, postbag
+n03773504	missile
+n03775071	mitten
+n03792782	mountain bike, all-terrain bike, off-roader
+n03792972	mountain tent
+n03877472	pajama, pyjama, pj's, jammies
+n03888257	parachute, chute
+n03982430	pool table, billiard table, snooker table
+n04044716	radio telescope, radio reflector
+n04069434	reflex camera
+n04086273	revolver, six-gun, six-shooter
+n04120489	running shoe
+n07753592	banana
+n07873807	pizza, pizza pie
+n11939491	daisy
+n13054560	bolete
+n02099601   golden retriever
+n02099712   Labrador retriever
+n02106166   Border collie
+n02106550   Rottweiler
+n02107142   Doberman, Doberman pinscher
+n02110185   Siberian husky
+n02111889   Samoyed, Samoyede
+n02112826   corgi, Welsh_corgi
+n01443537   goldfish, Carassius auratus
+n01456756   seahorse, sea_horse
+n01484850   great white shark, white shark, man-eater, man-eating shark, Carcharodon carcharias
+n01494475   hammerhead, hammerhead shark
+n01496331   electric ray, crampfish, numbfish, torpedo
+n02630281   sailfish
+n02643566   lionfish
+n02655020   puffer, pufferfish, blowfish, globefish
+n07740461   Red_Delicious
+n07745940   strawberry
+n07749192   navel_orange
+n07753275   pineapple, ananas
+n07756951   watermelon
+n07758680   grape
+n07772935   coconut, cocoanut
+n12144580   corn
+n02701002   ambulance
+n02901620   brigantine, hermaphrodite_brig
+n03384352   forklift
+n03690473   lorry, camion
+n03790512   motorcycle, bike
+n03845190   oil_tanker, oiler, tanker, tank_ship
+n04389033   tank, army_tank, armored_combat_vehicle, armoured_combat_vehicle
+n04465666   tractor
+n02672831   accordion, piano_accordion, squeeze_box
+n02992211   cello, violoncello
+n03372029   flute, transverse_flute
+n03495258   harp
+n03838899   oboe, hautboy, hautbois
+n03884397   panpipe, pandean_pipe, syrinx
+n04249415   snare_drum, snare, side_drum
+n04487394   trombone
