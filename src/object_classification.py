@@ -1,10 +1,54 @@
 import argparse
-import os.path
-
+import torch
+from torch.utils.data import DataLoader, Subset
+import torch.optim as optim
 import numpy as np
-from dataset import EEG_ImageNet_Dataset
+from tqdm import tqdm
+from sklearn.metrics import accuracy_score
+from dataset import EEGImageNetDataset
 from de_feat_cal import de_feat_cal
-from model.simple_model import SVM_classifier, RF_classifier, KNN_classifier
+from model.simple_model import SimpleModel
+from model.eegnet import EEGNet
+from model.mlp import MLP
+
+
+def model_init(args, if_simple, dataset_size):
+    if if_simple:
+        _model = SimpleModel(args)
+    elif args.model.lower() == 'eegnet':
+        _model = EEGNet(args, dataset_size // 50)
+    elif args.model.lower() == 'mlp':
+        _model = MLP(args, dataset_size // 50)
+    else:
+        raise ValueError(f"Couldn't find the model {args.model}")
+    return _model
+
+
+def model_main(args, model, train_loader, test_loader, criterion, optimizer, num_epochs):
+    running_loss = 0.0
+    for epoch in tqdm(range(num_epochs)):
+        model.train()
+        for batch_idx, (inputs, labels) in enumerate(train_loader):
+            outputs = model(inputs)
+            loss = criterion(outputs, labels)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            running_loss += loss.item()
+            if batch_idx % 60 == 59:
+                print(f"[epoch {epoch}, batch {batch_idx}] loss: {running_loss / 60}")
+                running_loss = 0.0
+        model.eval()
+        with torch.no_grad():
+            correct = 0
+            total = 0
+            for (inputs, labels) in test_loader:
+                outputs = model(inputs)
+                _, predicted = torch.max(outputs.data, dim=1)
+                total += len(labels)
+                correct += accuracy_score(labels, predicted, normalize=False)
+        print(f"Accuracy on test set: {correct / total}")
+
 
 if __name__ == '__main__':
     granularity_choice = ["coarse", "fine", "all"]
@@ -18,27 +62,42 @@ if __name__ == '__main__':
     args = parser.parse_args()
     print(args)
 
-    dataset = EEG_ImageNet_Dataset(args)
+    dataset = EEGImageNetDataset(args)
     train_index = np.array([i for i in range(len(dataset)) if i % 50 < 30])
     test_index = np.array([i for i in range(len(dataset)) if i % 50 > 29])
-    eeg_data = np.stack([i[0].T.numpy() for i in dataset], axis=0)
-    de_feat = de_feat_cal(eeg_data, args)
-    train_feat = de_feat[train_index]
-    test_feat = de_feat[test_index]
-    labels = np.array([dataset.labels.index(i[1]) for i in dataset])
-    train_labels = labels[train_index]
-    test_labels = labels[test_index]
+    train_subset = Subset(dataset, train_index)
+    test_subset = Subset(dataset, test_index)
 
-    if args.model.lower() == 'svm':
-        model = SVM_classifier
-    elif args.model.lower() == 'rf':
-        model = RF_classifier
-    elif args.model.lower() == 'knn':
-        model = KNN_classifier
-    else:
-        raise ValueError(f"Couldn't find the model {args.model}")
+    simple_model_list = ['svm', 'rf', 'knn', 'dt', 'ridge']
+    if_simple = args.model.lower() in simple_model_list
+    model = model_init(args, if_simple, len(dataset))
+    if if_simple:
+        eeg_data = np.stack([i[0].numpy() for i in dataset], axis=0)
+        labels = np.array([i[1] for i in dataset])
+        train_labels = labels[train_index]
+        test_labels = labels[test_index]
+        # extract frequency domain features
+        de_feat = de_feat_cal(eeg_data, args)
+        train_feat = de_feat[train_index]
+        test_feat = de_feat[test_index]
 
-    acc = model(train_feat, train_labels, test_feat, test_labels)
+        model.fit(train_feat, train_labels)
+        y_pred = model.predict(test_feat)
+        acc = accuracy_score(test_labels, y_pred)
+    elif args.model.lower() == 'eegnet':
+        train_dataloader = DataLoader(train_subset, batch_size=10, shuffle=True)
+        test_dataloader = DataLoader(test_subset, batch_size=10, shuffle=False)
+        criterion = torch.nn.CrossEntropyLoss()
+        optimizer = optim.SGD(model.parameters(), lr=0.1, momentum=0.7)
+        model_main(args, model, train_dataloader, test_dataloader, criterion, optimizer, 1000)
+        torch.save(model.state_dict(), 'eegnet.pth')
+    elif args.model.lower() == 'mlp':
+        train_dataloader = DataLoader(train_subset, batch_size=10, shuffle=True)
+        test_dataloader = DataLoader(test_subset, batch_size=10, shuffle=False)
+        criterion = torch.nn.CrossEntropyLoss()
+        optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.7)
+        model_main(args, model, train_dataloader, test_dataloader, criterion, optimizer, 100)
+        torch.save(model.state_dict(), 'mlp.pth')
     with open(args.output_path, "a") as f:
         f.write(str(acc))
         f.write("\n")
