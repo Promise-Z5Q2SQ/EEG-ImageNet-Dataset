@@ -13,26 +13,31 @@ from model.mlp import MLP
 from utilities import *
 
 
-def model_init(args, if_simple, dataset_size):
+def model_init(args, if_simple, num_classes):
     if if_simple:
         _model = SimpleModel(args)
     elif args.model.lower() == 'eegnet':
-        _model = EEGNet(args, dataset_size // 50)
+        _model = EEGNet(args, num_classes)
     elif args.model.lower() == 'mlp':
-        _model = MLP(args, dataset_size // 50)
+        _model = MLP(args, num_classes)
     else:
         raise ValueError(f"Couldn't find the model {args.model}")
     return _model
 
 
-def model_main(args, model, train_loader, test_loader, criterion, optimizer, num_epochs, device):
+def model_main(args, model, train_loader, test_loader, criterion, optimizer, num_epochs, device, labels):
     model = model.to(device)
+    unique_labels = torch.from_numpy(labels).unique()
+    label_mapping = {original_label.item(): new_label for new_label, original_label in enumerate(unique_labels)}
+    inverse_label_mapping = {v: k for k, v in label_mapping.items()}
     running_loss = 0.0
     max_acc = 0.0
+    max_acc_epoch = -1
     report_batch = len(train_loader) / 2
     for epoch in tqdm(range(num_epochs)):
         model.train()
         for batch_idx, (inputs, labels) in enumerate(train_loader):
+            labels = torch.tensor([label_mapping[label.item()] for label in labels])
             inputs, labels = inputs.to(device), labels.to(device)
             outputs = model(inputs)
             loss = criterion(outputs, labels)
@@ -49,6 +54,7 @@ def model_main(args, model, train_loader, test_loader, criterion, optimizer, num
             total = 0
             test_loss = 0
             for (inputs, labels) in test_loader:
+                labels = torch.tensor([label_mapping[label.item()] for label in labels])
                 inputs, labels = inputs.to(device), labels.to(device)
                 outputs = model(inputs)
                 test_loss += criterion(outputs, labels)
@@ -59,7 +65,9 @@ def model_main(args, model, train_loader, test_loader, criterion, optimizer, num
         print(f"Accuracy on test set: {acc}; Loss on test set: {test_loss / len(test_loader)}")
         if acc > max_acc:
             max_acc = acc
-    return max_acc
+            max_acc_epoch = epoch
+            torch.save(model.state_dict(), os.path.join(args.output_dir, 'eegnet_s0_2x_0.pth'))
+    return max_acc, max_acc_epoch
 
 
 if __name__ == '__main__':
@@ -81,6 +89,7 @@ if __name__ == '__main__':
     # extract frequency domain features
     de_feat = de_feat_cal(eeg_data, args)
     dataset.add_frequency_feat(de_feat)
+    labels = np.array([i[1] for i in dataset])
     train_index = np.array([i for i in range(len(dataset)) if i % 50 < 30])
     test_index = np.array([i for i in range(len(dataset)) if i % 50 > 29])
     train_subset = Subset(dataset, train_index)
@@ -89,17 +98,14 @@ if __name__ == '__main__':
     simple_model_list = ['svm', 'rf', 'knn', 'dt', 'ridge']
     if_simple = args.model.lower() in simple_model_list
     device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
-    model = model_init(args, if_simple, len(dataset))
+    model = model_init(args, if_simple, len(dataset) // 50)
     if args.pretrained_model:
         model.load_state_dict(torch.load(os.path.join(args.output_dir, str(args.pretrained_model))))
     if if_simple:
-
-        labels = np.array([i[1] for i in dataset])
         train_labels = labels[train_index]
         test_labels = labels[test_index]
         train_feat = de_feat[train_index]
         test_feat = de_feat[test_index]
-
         model.fit(train_feat, train_labels)
         y_pred = model.predict(test_feat)
         acc = accuracy_score(test_labels, y_pred)
@@ -107,17 +113,17 @@ if __name__ == '__main__':
         train_dataloader = DataLoader(train_subset, batch_size=args.batch_size, shuffle=True)
         test_dataloader = DataLoader(test_subset, batch_size=args.batch_size, shuffle=False)
         criterion = torch.nn.CrossEntropyLoss()
-        optimizer = optim.SGD(model.parameters(), lr=0.05, weight_decay=1e-2)
-        acc = model_main(args, model, train_dataloader, test_dataloader, criterion, optimizer, 500, device)
-        torch.save(model.state_dict(), os.path.join(args.output_dir, 'eegnet_sgd_8_4l0.pth'))
+        optimizer = optim.SGD(model.parameters(), lr=0.05, weight_decay=1e-2, momentum=0.9)
+        acc, epoch = model_main(args, model, train_dataloader, test_dataloader, criterion, optimizer, 1000, device,
+                                labels)
     elif args.model.lower() == 'mlp':
         dataset.use_frequency_feat = True
         train_dataloader = DataLoader(train_subset, batch_size=args.batch_size, shuffle=True)
         test_dataloader = DataLoader(test_subset, batch_size=args.batch_size, shuffle=False)
         criterion = torch.nn.CrossEntropyLoss()
-        optimizer = optim.SGD(model.parameters(), lr=0.1, weight_decay=1e-2)
-        acc = model_main(args, model, train_dataloader, test_dataloader, criterion, optimizer, 500, device)
-        torch.save(model.state_dict(), os.path.join(args.output_dir, 'mlp_sgd_8_0.pth'))
+        optimizer = optim.SGD(model.parameters(), lr=1e-4, weight_decay=1e-4, momentum=0.9)
+        acc, epoch = model_main(args, model, train_dataloader, test_dataloader, criterion, optimizer, 1000, device,
+                                labels)
     with open(os.path.join(args.output_dir, "tmp.txt"), "a") as f:
-        f.write(str(acc))
+        f.write(f"{epoch}: {acc}")
         f.write("\n")
