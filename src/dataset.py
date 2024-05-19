@@ -17,12 +17,23 @@ class EEGImageNetDataset(Dataset):
             self.data = chosen_data
         self.labels = loaded["labels"]
         self.images = loaded["images"]
+        self.use_frequency_feat = False
+        self.frequency_feat = None
 
     def __getitem__(self, index):
-        eeg_data = self.data[index]["eeg_data"].float()
-        eeg_data = eeg_data[:, 40:440]
         label = self.data[index]["label"]
-        return eeg_data, self.labels.index(label)
+        if self.use_frequency_feat:
+            return self.frequency_feat[index], self.labels.index(label)
+        else:
+            eeg_data = self.data[index]["eeg_data"].float()
+            eeg_data = eeg_data[:, 40:440]
+            return eeg_data, self.labels.index(label)
 
     def __len__(self):
         return len(self.data)
+
+    def add_frequency_feat(self, feat):
+        if len(feat) == len(self.data):
+            self.frequency_feat = torch.from_numpy(feat).float()
+        else:
+            raise ValueError("Frequency features must have same length")

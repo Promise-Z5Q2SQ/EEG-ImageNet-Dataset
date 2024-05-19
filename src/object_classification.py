@@ -77,6 +77,10 @@ if __name__ == '__main__':
     print(args)
 
     dataset = EEGImageNetDataset(args)
+    eeg_data = np.stack([i[0].numpy() for i in dataset], axis=0)
+    # extract frequency domain features
+    de_feat = de_feat_cal(eeg_data, args)
+    dataset.add_frequency_feat(de_feat)
     train_index = np.array([i for i in range(len(dataset)) if i % 50 < 30])
     test_index = np.array([i for i in range(len(dataset)) if i % 50 > 29])
     train_subset = Subset(dataset, train_index)
@@ -89,12 +93,10 @@ if __name__ == '__main__':
     if args.pretrained_model:
         model.load_state_dict(torch.load(os.path.join(args.output_dir, str(args.pretrained_model))))
     if if_simple:
-        eeg_data = np.stack([i[0].numpy() for i in dataset], axis=0)
+
         labels = np.array([i[1] for i in dataset])
         train_labels = labels[train_index]
         test_labels = labels[test_index]
-        # extract frequency domain features
-        de_feat = de_feat_cal(eeg_data, args)
         train_feat = de_feat[train_index]
         test_feat = de_feat[test_index]
 
@@ -109,6 +111,7 @@ if __name__ == '__main__':
         acc = model_main(args, model, train_dataloader, test_dataloader, criterion, optimizer, 500, device)
         torch.save(model.state_dict(), os.path.join(args.output_dir, 'eegnet_sgd_8_4l0.pth'))
     elif args.model.lower() == 'mlp':
+        dataset.use_frequency_feat = True
         train_dataloader = DataLoader(train_subset, batch_size=args.batch_size, shuffle=True)
         test_dataloader = DataLoader(test_subset, batch_size=args.batch_size, shuffle=False)
         criterion = torch.nn.CrossEntropyLoss()
