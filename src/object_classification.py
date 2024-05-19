@@ -25,32 +25,38 @@ def model_init(args, if_simple, dataset_size):
     return _model
 
 
-def model_main(args, model, train_loader, test_loader, criterion, optimizer, num_epochs):
+def model_main(args, model, train_loader, test_loader, criterion, optimizer, num_epochs, device):
+    model = model.to(device)
     running_loss = 0.0
     max_acc = 0.0
+    report_batch = len(train_loader) / 2
     for epoch in tqdm(range(num_epochs)):
         model.train()
         for batch_idx, (inputs, labels) in enumerate(train_loader):
+            inputs, labels = inputs.to(device), labels.to(device)
             outputs = model(inputs)
             loss = criterion(outputs, labels)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
             running_loss += loss.item()
-            if batch_idx % 30 == 29:
-                print(f"[epoch {epoch}, batch {batch_idx}] loss: {running_loss / 30}")
+            if batch_idx % report_batch == report_batch - 1:
+                print(f"[epoch {epoch}, batch {batch_idx}] loss: {running_loss / report_batch}")
                 running_loss = 0.0
         model.eval()
         with torch.no_grad():
             correct = 0
             total = 0
+            test_loss = 0
             for (inputs, labels) in test_loader:
+                inputs, labels = inputs.to(device), labels.to(device)
                 outputs = model(inputs)
+                test_loss += criterion(outputs, labels)
                 _, predicted = torch.max(outputs.data, dim=1)
                 total += len(labels)
-                correct += accuracy_score(labels, predicted, normalize=False)
+                correct += accuracy_score(labels.cpu(), predicted.cpu(), normalize=False)
         acc = correct / total
-        print(f"Accuracy on test set: {acc}")
+        print(f"Accuracy on test set: {acc}; Loss on test set: {test_loss / len(test_loader)}")
         if acc > max_acc:
             max_acc = acc
     return max_acc
@@ -78,9 +84,10 @@ if __name__ == '__main__':
 
     simple_model_list = ['svm', 'rf', 'knn', 'dt', 'ridge']
     if_simple = args.model.lower() in simple_model_list
+    device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
     model = model_init(args, if_simple, len(dataset))
     if args.pretrained_model:
-        model.load_state_dict(torch.load(os.path.join(args.output_path, str(args.pretrained_model))))
+        model.load_state_dict(torch.load(os.path.join(args.output_dir, str(args.pretrained_model))))
     if if_simple:
         eeg_data = np.stack([i[0].numpy() for i in dataset], axis=0)
         labels = np.array([i[1] for i in dataset])
@@ -98,16 +105,16 @@ if __name__ == '__main__':
         train_dataloader = DataLoader(train_subset, batch_size=args.batch_size, shuffle=True)
         test_dataloader = DataLoader(test_subset, batch_size=args.batch_size, shuffle=False)
         criterion = torch.nn.CrossEntropyLoss()
-        optimizer = optim.SGD(model.parameters(), lr=0.01, weight_decay=1e-4)
-        acc = model_main(args, model, train_dataloader, test_dataloader, criterion, optimizer, 200)
-        torch.save(model.state_dict(), os.path.join(args.output_path, 'eegnet.pth'))
+        optimizer = optim.SGD(model.parameters(), lr=0.05, weight_decay=1e-2)
+        acc = model_main(args, model, train_dataloader, test_dataloader, criterion, optimizer, 500, device)
+        torch.save(model.state_dict(), os.path.join(args.output_dir, 'eegnet_sgd_8_4l0.pth'))
     elif args.model.lower() == 'mlp':
         train_dataloader = DataLoader(train_subset, batch_size=args.batch_size, shuffle=True)
         test_dataloader = DataLoader(test_subset, batch_size=args.batch_size, shuffle=False)
         criterion = torch.nn.CrossEntropyLoss()
-        optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.7)
-        acc = model_main(args, model, train_dataloader, test_dataloader, criterion, optimizer, 100)
-        torch.save(model.state_dict(), os.path.join(args.output_path, 'mlp.pth'))
-    with open(os.path.join(args.output_path, "tmp.txt"), "a") as f:
+        optimizer = optim.SGD(model.parameters(), lr=0.1, weight_decay=1e-2)
+        acc = model_main(args, model, train_dataloader, test_dataloader, criterion, optimizer, 500, device)
+        torch.save(model.state_dict(), os.path.join(args.output_dir, 'mlp_sgd_8_0.pth'))
+    with open(os.path.join(args.output_dir, "tmp.txt"), "a") as f:
         f.write(str(acc))
         f.write("\n")
