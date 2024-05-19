@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 import os
 from torch.utils.data import Dataset
@@ -6,17 +7,22 @@ from torch.utils.data import Dataset
 class EEGImageNetDataset(Dataset):
     def __init__(self, args):
         loaded = torch.load(os.path.join(args.dataset_dir, "EEG-ImageNet.pth"))
+        self.labels = loaded["labels"]
+        self.images = loaded["images"]
         if args.subject != -1:
             chosen_data = [loaded['dataset'][i] for i in range(len(loaded['dataset'])) if
                            loaded['dataset'][i]['subject'] == args.subject]
         else:
             chosen_data = loaded['dataset']
-        if args.granularity != 'all':
-            self.data = [i for i in chosen_data if i['granularity'] == args.granularity]
-        else:
+        if args.granularity == 'coarse':
+            self.data = [i for i in chosen_data if i['granularity'] == 'coarse']
+        elif args.granularity == 'all':
             self.data = chosen_data
-        self.labels = loaded["labels"]
-        self.images = loaded["images"]
+        else:
+            fine_num = int(args.granularity[-1])
+            fine_category_range = np.arange(8 * fine_num, 8 * fine_num + 8)
+            self.data = [i for i in chosen_data if
+                         i['granularity'] == 'fine' and self.labels.index(i['label']) in fine_category_range]
         self.use_frequency_feat = False
         self.frequency_feat = None
 

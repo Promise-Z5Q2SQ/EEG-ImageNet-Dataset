@@ -71,11 +71,9 @@ def model_main(args, model, train_loader, test_loader, criterion, optimizer, num
 
 
 if __name__ == '__main__':
-    granularity_choice = ["coarse", "fine", "all"]
     parser = argparse.ArgumentParser()
     parser.add_argument("-d", "--dataset_dir", required=True, help="directory name of EEG-ImageNet dataset path")
-    parser.add_argument("-g", "--granularity", required=True, choices=granularity_choice,
-                        help="choose from coarse, fine and all")
+    parser.add_argument("-g", "--granularity", required=True, help="choose from coarse, fine and all")
     parser.add_argument("-m", "--model", required=True, help="model")
     parser.add_argument("-b", "--batch_size", default=40, type=int, help="batch size")
     parser.add_argument("-p", "--pretrained_model", help="pretrained model")
@@ -109,21 +107,25 @@ if __name__ == '__main__':
         model.fit(train_feat, train_labels)
         y_pred = model.predict(test_feat)
         acc = accuracy_score(test_labels, y_pred)
-    elif args.model.lower() == 'eegnet':
-        train_dataloader = DataLoader(train_subset, batch_size=args.batch_size, shuffle=True)
-        test_dataloader = DataLoader(test_subset, batch_size=args.batch_size, shuffle=False)
-        criterion = torch.nn.CrossEntropyLoss()
-        optimizer = optim.SGD(model.parameters(), lr=0.05, weight_decay=1e-2, momentum=0.9)
-        acc, epoch = model_main(args, model, train_dataloader, test_dataloader, criterion, optimizer, 1000, device,
-                                labels)
-    elif args.model.lower() == 'mlp':
-        dataset.use_frequency_feat = True
-        train_dataloader = DataLoader(train_subset, batch_size=args.batch_size, shuffle=True)
-        test_dataloader = DataLoader(test_subset, batch_size=args.batch_size, shuffle=False)
-        criterion = torch.nn.CrossEntropyLoss()
-        optimizer = optim.SGD(model.parameters(), lr=1e-4, weight_decay=1e-4, momentum=0.9)
-        acc, epoch = model_main(args, model, train_dataloader, test_dataloader, criterion, optimizer, 1000, device,
-                                labels)
-    with open(os.path.join(args.output_dir, "tmp.txt"), "a") as f:
-        f.write(f"{epoch}: {acc}")
-        f.write("\n")
+        with open(os.path.join(args.output_dir, "tmp.txt"), "a") as f:
+            f.write(f"{acc}")
+            f.write("\n")
+    else:
+        if args.model.lower() == 'eegnet':
+            train_dataloader = DataLoader(train_subset, batch_size=args.batch_size, shuffle=True)
+            test_dataloader = DataLoader(test_subset, batch_size=args.batch_size, shuffle=False)
+            criterion = torch.nn.CrossEntropyLoss()
+            optimizer = optim.SGD(model.parameters(), lr=0.05, weight_decay=1e-2, momentum=0.9)
+            acc, epoch = model_main(args, model, train_dataloader, test_dataloader, criterion, optimizer, 1000, device,
+                                    labels)
+        elif args.model.lower() == 'mlp':
+            dataset.use_frequency_feat = True
+            train_dataloader = DataLoader(train_subset, batch_size=args.batch_size, shuffle=True)
+            test_dataloader = DataLoader(test_subset, batch_size=args.batch_size, shuffle=False)
+            criterion = torch.nn.CrossEntropyLoss()
+            optimizer = optim.SGD(model.parameters(), lr=1e-4, weight_decay=1e-4, momentum=0.9)
+            acc, epoch = model_main(args, model, train_dataloader, test_dataloader, criterion, optimizer, 1000, device,
+                                    labels)
+        with open(os.path.join(args.output_dir, "tmp.txt"), "a") as f:
+            f.write(f"{epoch}: {acc}")
+            f.write("\n")
