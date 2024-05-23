@@ -66,7 +66,7 @@ def model_main(args, model, train_loader, test_loader, criterion, optimizer, num
         if acc > max_acc:
             max_acc = acc
             max_acc_epoch = epoch
-            torch.save(model.state_dict(), os.path.join(args.output_dir, 'eegnet_s0_2x_0.pth'))
+            torch.save(model.state_dict(), os.path.join(args.output_dir, f'eegnet_s{args.subject}_1x_22.pth'))
     return max_acc, max_acc_epoch
 
 
@@ -107,7 +107,7 @@ if __name__ == '__main__':
         model.fit(train_feat, train_labels)
         y_pred = model.predict(test_feat)
         acc = accuracy_score(test_labels, y_pred)
-        with open(os.path.join(args.output_dir, "tmp.txt"), "a") as f:
+        with open(os.path.join(args.output_dir, "simple.txt"), "a") as f:
             f.write(f"{acc}")
             f.write("\n")
     else:
@@ -115,7 +115,7 @@ if __name__ == '__main__':
             train_dataloader = DataLoader(train_subset, batch_size=args.batch_size, shuffle=True)
             test_dataloader = DataLoader(test_subset, batch_size=args.batch_size, shuffle=False)
             criterion = torch.nn.CrossEntropyLoss()
-            optimizer = optim.SGD(model.parameters(), lr=0.05, weight_decay=1e-2, momentum=0.9)
+            optimizer = optim.SGD(model.parameters(), lr=1e-2, weight_decay=1e-3, momentum=0.9)
             acc, epoch = model_main(args, model, train_dataloader, test_dataloader, criterion, optimizer, 1000, device,
                                     labels)
         elif args.model.lower() == 'mlp':
@@ -126,6 +126,6 @@ if __name__ == '__main__':
             optimizer = optim.SGD(model.parameters(), lr=1e-4, weight_decay=1e-4, momentum=0.9)
             acc, epoch = model_main(args, model, train_dataloader, test_dataloader, criterion, optimizer, 1000, device,
                                     labels)
-        with open(os.path.join(args.output_dir, "tmp.txt"), "a") as f:
+        with open(os.path.join(args.output_dir, "eegnet.txt"), "a") as f:
             f.write(f"{epoch}: {acc}")
             f.write("\n")
