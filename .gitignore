@@ -5,5 +5,5 @@ __pycache__/
 
 EEG-ImageNet.pth
 /data/de_feat/
-tmp.txt
+**.txt
 **.pth

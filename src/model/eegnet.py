@@ -4,7 +4,7 @@ from torch.nn.parameter import Parameter
 
 
 class EEGNet(nn.Module):
-    def __init__(self, args, num_classes, chans=62, samples=400, dropout_rate=0.5, kern_length=200, F1=16, D=4, F2=64,
+    def __init__(self, args, num_classes, chans=62, samples=400, dropout_rate=0.5, kern_length=200, F1=8, D=2, F2=16,
                  norm_rate=0.25):
         super(EEGNet, self).__init__()
 
