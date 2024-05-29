@@ -150,6 +150,7 @@ class RGNN(torch.nn.Module):
             self.domain_classifier = nn.Linear(num_hiddens, 2)
             torch.nn.init.xavier_normal_(self.domain_classifier.weight)
         self.bn = nn.BatchNorm1d(num_nodes * num_features)
+        self.bn1 = nn.BatchNorm1d(num_hiddens)
 
     def append(self, edge_index, batch_size):  # stretch and repeat and rename
         edge_index_all = torch.LongTensor(2, edge_index.shape[1] * batch_size)
@@ -161,25 +162,24 @@ class RGNN(torch.nn.Module):
 
     def forward(self, x, alpha=0, need_pred=True, need_dat=False):
         batch_size = len(x)
-        x = self.bn(x)
-        x = x.view(-1, 5)
+        x = self.bn(x)  # (80, 310)
+        x = x.view(-1, 5)  # (4960, 5)
         edge_index, data_batch = self.append(self.edge_index, batch_size)
-        edge_weight = torch.zeros(
-            (self.num_nodes, self.num_nodes), device=edge_index.device)
-        edge_weight[self.xs.to(edge_weight.device), self.ys.to(
-            edge_weight.device)] = self.edge_weight
+        edge_weight = torch.zeros((self.num_nodes, self.num_nodes), device=edge_index.device)
+        edge_weight[self.xs.to(edge_weight.device), self.ys.to(edge_weight.device)] = self.edge_weight
         edge_weight = edge_weight + edge_weight.transpose(1, 0) - torch.diag(edge_weight.diagonal())
         edge_weight = edge_weight.reshape(-1).repeat(batch_size)
         # edge_index: (2, self.num_nodes * self.num_nodes * batch_size)
         # edge_weight: (self.num_nodes * self.num_nodes * batch_size,)
-        x = F.relu(self.conv1(x, edge_index, edge_weight))
+        x = F.relu(self.conv1(x, edge_index, edge_weight))  # (4960, 200)
         # domain classification
         domain_output = None
         if need_dat == True:
             reverse_x = ReverseLayerF.apply(x, alpha)
             domain_output = self.domain_classifier(reverse_x)
         if need_pred == True:
-            x = global_add_pool(x, data_batch, size=batch_size)
+            x = global_add_pool(x, data_batch, size=batch_size)  # (80, 200)
+            x = self.bn1(x)
             x = F.dropout(x, p=self.dropout, training=self.training)
             x = self.fc(x)
         # x.shape -> (batch_size, num_classes)
